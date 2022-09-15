@@ -1,0 +1,8 @@
+# This is a list file
+foo.bar
+subdir/test2.list
+# A comment followed by an emtpy line
+
+bar.foo
+subdir/test2.list  # duplicate
+subdir2/bar/files.list
