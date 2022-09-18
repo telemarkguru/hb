@@ -112,3 +112,17 @@ def test_directories():
             "files/subdir2",
         ],
     )
+
+
+def test_relative():
+    path.clear()
+    pset = path.pathset("/files/test1.list", anchor=_this)
+    rp = path.relative(f"{_this}/files/subdir/ping", pset)
+    assert rp == [
+        "../../foo.bar",
+        "../foo.bar",
+        "../../bar.foo",
+        "../../subdir2/foo/x.y",
+        "../../subdir2/bar/a.file",
+        "../../subdir2/foo/z.w",
+    ]

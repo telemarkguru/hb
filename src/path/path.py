@@ -4,10 +4,10 @@ Cononical file paths with caching
 
 import os
 import re
-from os.path import abspath, normpath, dirname
+from os.path import abspath, normpath, dirname, relpath
 from os import getcwd
 from stat import S_ISDIR
-from typing import Dict, Iterable
+from typing import Dict, Iterable, List
 
 
 root = None  # root direcotory (found by scanning for .hbroot files)
@@ -159,6 +159,11 @@ def directories(pathset: Dict[str, bool]) -> Dict[str, bool]:
             _dir_cache[path] = p
         pset[p] = True
     return pset
+
+
+def relative(frompath: str, pathset: Dict[str, bool]) -> List[str]:
+    """Return list of relative paths for all paths in pathset"""
+    return [relpath(p, frompath) for p in pathset]
 
 
 def clear():
