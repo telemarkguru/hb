@@ -3,8 +3,7 @@ from .. import path
 import os
 import os.path as op
 
-_this = op.normpath(op.abspath(op.dirname("__file__")))
-print("this", _this)
+_this = op.normpath(op.abspath(op.dirname(__file__)))
 
 
 def _expected_paths(*paths):
