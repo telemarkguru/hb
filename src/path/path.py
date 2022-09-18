@@ -4,15 +4,20 @@ Cononical file paths with caching
 
 import os
 import re
-from os.path import abspath, normpath
+from os.path import abspath, normpath, dirname
 from os import getcwd
+from stat import S_ISDIR
+from typing import Dict, Iterable
 
 
-root = None
+root = None  # root direcotory (found by scanning for .hbroot files)
+current = None  # current directory
+
+
 _comment = re.compile(r"#.*$")
 
 
-def _find_root(path: str):
+def _find_root(path: str) -> str:
     parts = path.split("/")
     while parts:
         root = "/".join(parts)
@@ -22,24 +27,12 @@ def _find_root(path: str):
     raise FileNotFoundError(f"Cannot find root given {path}")
 
 
-def _fix_dots(path: str):
-    parts = "/".split(path)
-
-    try:
-        while True:
-            i = parts.index("..")
-            del parts[i - 1 : i + 1]
-    except ValueError:
-        parts = [x for x in parts if x not in (".", "..")]
-        return "/".join(parts)
-
-
-def _cwd():
+def cwd() -> str:
     """Return canonical representation of current work directory"""
     return normpath(abspath(getcwd()))
 
 
-def canonical(path: str, anchor: str = None):
+def canonical(path: str, anchor: str = None) -> str:
     """Return canonical absolute path given a relative or absolute path
     The optiona anchor paramter gives the source directroy for relative
     paths. If not given, the current directory is used.
@@ -49,12 +42,12 @@ def canonical(path: str, anchor: str = None):
     """
     global root
     if not root:
-        anchor = anchor or _cwd()
+        anchor = anchor or current or "."
         root = _find_root(anchor)
     if path.startswith("/"):
         path = f"{root}{path}"
     else:
-        anchor = anchor or _cwd()
+        anchor = anchor or current
         path = f"{anchor}/{path}"
     path = normpath(path)
     if path.endswith("/,"):
@@ -63,18 +56,18 @@ def canonical(path: str, anchor: str = None):
     return path
 
 
-def pathset(*paths, anchor: str = None):
+def pathset(*paths, anchor: str = None) -> Dict[str, bool]:
     """Create path set,
-    Return a dict where the keys are conoical absolute paths.
+    Return a dict where the keys are canoical absolute paths.
 
-    The optiona anchor paramter gives the source directroy for relative
-    paths. If not given, the current directory is used.
+    The optional anchor paramter gives the source directroy for relative
+    paths. If not given, the current variable is used.
 
     The insert order is preserved.
     For duplicates,  the first inserted is kept.
     """
     pset = dict()
-    anchor = anchor or _cwd()
+    anchor = anchor or current
     for path in paths:
         if isinstance(path, str):
             path = canonical(path, anchor)
@@ -85,16 +78,17 @@ def pathset(*paths, anchor: str = None):
         elif isinstance(path, dict):
             pset.update(path)
         else:
-            pset.update(pathset(path))
+            for p in path:
+                pset.update(pathset(p, anchor=anchor))
     return pset
 
 
-def paths(pathset):
+def paths(pathset: dict) -> Iterable[str]:
     """Return iterator for paths in pathset, in insertion order"""
     return pathset.keys()
 
 
-def _explist(listfilepath: str):
+def _explist(listfilepath: str) -> Dict[str, bool]:
     """Expand listfile (.list)
     Return pathset.
     """
@@ -113,39 +107,62 @@ def _explist(listfilepath: str):
     return pset
 
 
-_stat_cache = {}
+_stat_cache: Dict[str, os.stat_result] = {}
 _stat_cnt = {"hit": 0, "miss": 0}
 
 
-def stat(path):
+def stat(path: str) -> os.stat_result:
     """Return, possibly cached, file stats for a path
 
     Use cache to only access the file system once per path.
     clear() will clear the cache.
     """
-    stat = _stat_cache.get(path)
-    if stat:
+    fstat = _stat_cache.get(path)
+    if fstat:
         _stat_cnt["hit"] += 1
-        return stat
-    stat = os.stat(path)
-    _stat_cache[path] = stat
+        return fstat
+    fstat = os.stat(path)
+    _stat_cache[path] = fstat
     _stat_cnt["miss"] += 1
-    return stat
+    return fstat
+
+
+def isdir(path: str) -> bool:
+    """Reutrn True if path is a directory, False otherwise, usees
+    path stat cache"""
+    return S_ISDIR(stat(path).st_mode)
+
+
+def newest(pathset: dict) -> str:
+    """Return newest path in pathset"""
+    return max(pathset, key=lambda x: stat(x).st_mtime)
+
+
+def oldest(pathset: dict) -> str:
+    """Return oldest path in pathset"""
+    return min(pathset, key=lambda x: stat(x).st_mtime)
+
+
+_dir_cache: Dict[str, str] = {}
+
+
+def directories(pathset: Dict[str, bool]) -> Dict[str, bool]:
+    """Return directory part of all paths in pathset"""
+    pset = {}
+    for path in pathset:
+        p = _dir_cache.get(path)
+        if not p:
+            if isdir(path):
+                p = path
+            else:
+                p = dirname(path)
+            _dir_cache[path] = p
+        pset[p] = True
+    return pset
 
 
 def clear():
-    """Clear path stat cache"""
+    """Clear path caches"""
     _stat_cache.clear()
     _stat_cnt.update({"hit": 0, "miss": 0})
-
-
-def isdir(path):
-    """Reutrn True if path is a directory, False otherwise, usees
-    path stat cache"""
-    stat = stat(path)
-    return stat.S_ISDIR(stat.st_mode)
-
-
-def newest(pathset):
-    """Return newest path in pathset"""
-    return max(pathset, key=lambda x: stat(x).st_mtime)
+    _dir_cache.clear()

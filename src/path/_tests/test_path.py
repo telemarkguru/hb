@@ -2,6 +2,8 @@ from .. import path
 
 import os
 import os.path as op
+import pytest
+
 
 _this = op.normpath(op.abspath(op.dirname(__file__)))
 
@@ -17,9 +19,12 @@ def _assert_paths(pathset, expected):
 
 
 def test_root():
-    pset = path.pathset(".", anchor=_this)
+    pset = path.pathset(".", anchor=f"{_this}/subdir")
     assert path.root == _this
-    assert list(path.paths(pset)) == [_this]
+    assert list(path.paths(pset)) == [f"{_this}/subdir"]
+    path.root = None
+    with pytest.raises(FileNotFoundError, match=r"Cannot find root.*"):
+        pset = path.pathset(".", anchor=os.path.normpath(f"{_this}/.."))
 
 
 def test_pathset():
@@ -37,9 +42,26 @@ def test_pathset():
     )
 
 
+def test_merge_pathsets():
+    path.current = _this
+    pset1 = path.pathset(f"files")
+    pset2 = path.pathset(f"/files/subdir2/foo/foo.list")
+    pset = path.pathset(pset1, pset2, ["files/subdir", "files/foo.bar"])
+    _assert_paths(
+        pset,
+        [
+            "files",
+            "files/subdir2/foo/z.w",
+            "files/subdir",
+            "files/foo.bar",
+        ],
+    )
+
+
 def test_cwd_use():
     cwd = os.getcwd()
     os.chdir(f"{_this}/files/subdir")
+    path.current = path.cwd()
     pset = path.pathset(",")
     os.chdir(cwd)
     _assert_paths(pset, [f"files/subdir"])
@@ -64,3 +86,29 @@ def test_newest():
     path.clear()
     assert path._stat_cache == {}
     assert path.newest(pset) == f"{_this}/files/subdir2/bar/a.file"
+
+
+def test_oldest():
+    path.clear()
+    pset = path.pathset("/files/subdir2/bar/files.list", anchor=_this)
+    for p in ("bar/a.file", "foo/z.w"):
+        with open(f"{_this}/files/subdir2/{p}", "w"):
+            pass
+    assert path.oldest(pset) == f"{_this}/files/subdir2/foo/x.y"
+    assert path.newest(pset) == f"{_this}/files/subdir2/foo/z.w"
+
+
+def test_directories():
+    path.clear()
+    pset = path.pathset(f"/files/test1.list", "files/subdir2", anchor=_this)
+    directories = path.directories(pset)
+    _assert_paths(
+        directories,
+        [
+            "files",
+            "files/subdir",
+            "files/subdir2/foo",
+            "files/subdir2/bar",
+            "files/subdir2",
+        ],
+    )
