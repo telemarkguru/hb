@@ -1,0 +1,26 @@
+[project]
+name = "hb"
+version = "0.0.1"
+authors = [
+    { name="Stefan Sandström", email="telemarkguru@gmail.com" },
+]
+description = "Hierarchical build system"
+readme = "README.md"
+license = { file="LICENSE" }
+requires-python = ">=2.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: Unix",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/telemarkguru/hb"
+"Bug Tracker" = "https://github.com/telemarkguru/hb/issues"
+
+[project.scripts]
+hb = "hb.main:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
