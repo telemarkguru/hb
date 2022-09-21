@@ -20,6 +20,7 @@ classifiers = [
 
 [project.scripts]
 hb = "hb.cli:main"
+explist = "hb.cli:explist"
 
 [build-system]
 requires = ["hatchling"]

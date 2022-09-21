@@ -103,7 +103,7 @@ def _explist(listfilepath: str) -> Dict[str, bool]:
     Return pathset.
     """
     pset = dict()
-    directory = listfilepath.rsplit("/", 1)[0]
+    directory = dirname(listfilepath)
     with open(listfilepath) as fh:
         for line in fh:
             line = _comment.sub("", line).strip()
