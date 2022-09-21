@@ -26,15 +26,17 @@ def _find_root(path: str) -> str:
     raise FileNotFoundError(f"Cannot find root given {path}")
 
 
-def anchor(path: str) -> None:
-    """Set default anchor path"""
+def anchor(path: str) -> str:
+    """Set default anchor path, and return previous anchor"""
     global _anchor
+    last_anchor = _anchor
     _anchor = path
+    return last_anchor or ""
 
 
 def root() -> str:
     """Return canonical representation of the root directory"""
-    return _root
+    return _root or ""
 
 
 def cwd() -> str:
@@ -52,7 +54,7 @@ def canonical(path: str, anchor: str = None) -> str:
     """
     global _root
     if not _root:
-        anchor = anchor or _anchor
+        anchor = anchor or _anchor or "."
         _root = _find_root(anchor)
     if path.startswith("/"):
         path = f"{_root}{path}"
