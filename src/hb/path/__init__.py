@@ -1,1 +1,15 @@
-from .path import pathset, paths, stat, clear, isdir, newest, oldest, cwd
+from .path import (
+    pathset,
+    paths,
+    stat,
+    clear,
+    isdir,
+    newest,
+    oldest,
+    cwd,
+    relative,
+    directories,
+    root,
+    anchor,
+    statistics,
+)

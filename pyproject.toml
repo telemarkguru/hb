@@ -19,8 +19,31 @@ classifiers = [
 "Bug Tracker" = "https://github.com/telemarkguru/hb/issues"
 
 [project.scripts]
-hb = "hb.main:cli"
+hb = "hb.cli:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+    "--cov-report=term-missing",
+    "--cov"
+]
+testpaths = [
+    "src",
+    "tests",
+]
+[tool.coverage.run]
+source = ["src", "tests"]
+
+[metadata]
+name = "hb"
+
+[tool.black]
+line-length = 79
+include = [
+    "src",
+    "tests",
+]

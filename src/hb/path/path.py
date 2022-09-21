@@ -10,9 +10,8 @@ from stat import S_ISDIR
 from typing import Dict, Iterable, List
 
 
-root = None  # root direcotory (found by scanning for .hbroot files)
-current = None  # current directory
-
+_root = None  # root direcotory (found by scanning for .hbroot files)
+_anchor = None
 
 _comment = re.compile(r"#.*$")
 
@@ -27,6 +26,17 @@ def _find_root(path: str) -> str:
     raise FileNotFoundError(f"Cannot find root given {path}")
 
 
+def anchor(path: str) -> None:
+    """Set default anchor path"""
+    global _anchor
+    _anchor = path
+
+
+def root() -> str:
+    """Return canonical representation of the root directory"""
+    return _root
+
+
 def cwd() -> str:
     """Return canonical representation of current work directory"""
     return normpath(abspath(getcwd()))
@@ -34,20 +44,20 @@ def cwd() -> str:
 
 def canonical(path: str, anchor: str = None) -> str:
     """Return canonical absolute path given a relative or absolute path
-    The optiona anchor paramter gives the source directroy for relative
-    paths. If not given, the current directory is used.
+    The optiona anchor paramter gives the source directory for relative
+    paths. If not given, the default anchor is used (set with anchor(path))
 
     Surplus "/xxx/../", "/./", "//" etc are removed.
-    Symlinks are NOT expanded, as this is usually not what is wanted.
+    Symlinks are not expanded.
     """
-    global root
-    if not root:
-        anchor = anchor or current or "."
-        root = _find_root(anchor)
+    global _root
+    if not _root:
+        anchor = anchor or _anchor
+        _root = _find_root(anchor)
     if path.startswith("/"):
-        path = f"{root}{path}"
+        path = f"{_root}{path}"
     else:
-        anchor = anchor or current
+        anchor = anchor or _anchor
         path = f"{anchor}/{path}"
     path = normpath(path)
     if path.endswith("/,"):
@@ -60,14 +70,14 @@ def pathset(*paths, anchor: str = None) -> Dict[str, bool]:
     """Create path set,
     Return a dict where the keys are canoical absolute paths.
 
-    The optional anchor paramter gives the source directroy for relative
-    paths. If not given, the current variable is used.
+    The optional anchor paramter gives the source directory for relative
+    paths. If not given, the default anchor is used.
 
     The insert order is preserved.
     For duplicates,  the first inserted is kept.
     """
     pset = dict()
-    anchor = anchor or current
+    anchor = anchor or _anchor
     for path in paths:
         if isinstance(path, str):
             path = canonical(path, anchor)
@@ -166,8 +176,16 @@ def relative(frompath: str, pathset: Dict[str, bool]) -> List[str]:
     return [relpath(p, frompath) for p in pathset]
 
 
+def statistics():
+    """Return file stat cache statistics: (hit-count, miss-count)."""
+    return _stat_cnt["hit"], _stat_cnt["miss"]
+
+
 def clear():
-    """Clear path caches"""
+    """Clear path caches and default root and anchor paths"""
+    global _root, _anchor
     _stat_cache.clear()
     _stat_cnt.update({"hit": 0, "miss": 0})
     _dir_cache.clear()
+    _root = None
+    _anchor = None

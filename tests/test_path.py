@@ -1,4 +1,4 @@
-from .. import path
+from hb import path
 
 import os
 import os.path as op
@@ -20,9 +20,9 @@ def _assert_paths(pathset, expected):
 
 def test_root():
     pset = path.pathset(".", anchor=f"{_this}/subdir")
-    assert path.root == _this
+    assert path.root() == _this
     assert list(path.paths(pset)) == [f"{_this}/subdir"]
-    path.root = None
+    path.clear()
     with pytest.raises(FileNotFoundError, match=r"Cannot find root.*"):
         pset = path.pathset(".", anchor=os.path.normpath(f"{_this}/.."))
 
@@ -43,7 +43,7 @@ def test_pathset():
 
 
 def test_merge_pathsets():
-    path.current = _this
+    path.anchor(_this)
     pset1 = path.pathset(f"files")
     pset2 = path.pathset(f"/files/subdir2/foo/foo.list")
     pset = path.pathset(pset1, pset2, ["files/subdir", "files/foo.bar"])
@@ -61,7 +61,7 @@ def test_merge_pathsets():
 def test_cwd_use():
     cwd = os.getcwd()
     os.chdir(f"{_this}/files/subdir")
-    path.current = path.cwd()
+    path.anchor(path.cwd())
     pset = path.pathset(",")
     os.chdir(cwd)
     _assert_paths(pset, [f"files/subdir"])
@@ -69,22 +69,19 @@ def test_cwd_use():
 
 def test_newest():
     path.clear()
-    assert path._stat_cnt["hit"] == 0
-    assert path._stat_cnt["miss"] == 0
-    assert path._stat_cache == {}
+    assert path.statistics() == (0, 0)
+    path.clear()
     pset = path.pathset(f"/files/test1.list", anchor=_this)
     with open(f"{_this}/files/subdir2/foo/x.y", "w"):
         pass
     assert path.newest(pset) == f"{_this}/files/subdir2/foo/x.y"
-    assert path._stat_cnt["hit"] == 0
-    assert path._stat_cnt["miss"] == len(pset)
+    assert path.statistics() == (0, len(pset))
     with open(f"{_this}/files/subdir2/bar/a.file", "w"):
         pass
     assert path.newest(pset) == f"{_this}/files/subdir2/foo/x.y"
-    assert path._stat_cnt["hit"] == len(pset)
-    assert path._stat_cnt["miss"] == len(pset)
+    assert path.statistics() == (len(pset), len(pset))
     path.clear()
-    assert path._stat_cache == {}
+    assert path.statistics() == (0, 0)
     assert path.newest(pset) == f"{_this}/files/subdir2/bar/a.file"
 
 
