@@ -100,11 +100,16 @@ def paths(pathset: dict) -> Iterable[str]:
     return pathset.keys()
 
 
+_explist_cache: Dict[str, Dict[str, bool]] = {}
+
+
 def _explist(listfilepath: str) -> Dict[str, bool]:
     """Expand listfile (.list)
     Return pathset.
     """
-    pset = dict()
+    pset = _explist_cache.get(listfilepath, {})
+    if pset:
+        return pset
     directory = dirname(listfilepath)
     with open(listfilepath) as fh:
         for line in fh:
@@ -116,6 +121,7 @@ def _explist(listfilepath: str) -> Dict[str, bool]:
                 pset.update(_explist(path))
             else:
                 pset[path] = True
+    _explist_cache[listfilepath] = pset
     return pset
 
 
@@ -189,5 +195,6 @@ def clear():
     _stat_cache.clear()
     _stat_cnt.update({"hit": 0, "miss": 0})
     _dir_cache.clear()
+    _explist_cache.clear()
     _root = None
     _anchor = None
