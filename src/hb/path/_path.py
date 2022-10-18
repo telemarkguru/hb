@@ -7,7 +7,7 @@ import re
 from os.path import abspath, normpath, dirname, relpath
 from os import getcwd
 from stat import S_ISDIR
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Union
 
 
 _root = None  # root direcotory (found by scanning for .hbroot files)
@@ -127,28 +127,50 @@ def _explist(listfilepath: str) -> Dict[str, bool]:
 
 _stat_cache: Dict[str, os.stat_result] = {}
 _stat_cnt = {"hit": 0, "miss": 0}
+_default_stat = os.stat_result((
+    0x81b4,  # mode -rw-rw-r-- plain file
+    0,  #inode
+    0,  # device
+    1,  # nlink
+    0,  # uid
+    0,  # gid
+    0,  # size
+    0,  # atime
+    0,  # mtime
+    0,  # ctime
+))
 
 
 def stat(path: str) -> os.stat_result:
-    """Return, possibly cached, file stats for a path
+    """Return, possibly cached, file stats for a path,
+    or False if the path does not exist.
 
     Use cache to only access the file system once per path.
     clear() will clear the cache.
     """
     fstat = _stat_cache.get(path)
-    if fstat:
+    if fstat is not None:
         _stat_cnt["hit"] += 1
         return fstat
-    fstat = os.stat(path)
+    try:
+        fstat = os.stat(path)
+    except FileNotFoundError:
+        fstat = _default_stat
     _stat_cache[path] = fstat
     _stat_cnt["miss"] += 1
     return fstat
 
 
 def isdir(path: str) -> bool:
-    """Reutrn True if path is a directory, False otherwise, usees
+    """Return True if path is a directory, False otherwise, usees
     path stat cache"""
     return S_ISDIR(stat(path).st_mode)
+
+
+def exists(path: str) -> bool:
+    """Return True if path exists, False otherwise, usees
+    path stat cache"""
+    return stat(path).st_ctime != 0
 
 
 def newest(pathset: dict) -> str:

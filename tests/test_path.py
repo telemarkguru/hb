@@ -28,7 +28,7 @@ def test_root():
 
 
 def test_pathset():
-    pset = path.pathset(f"/files/test1.list", anchor=_this)
+    pset = path.pathset("/files/test1.list", anchor=_this)
     _assert_paths(
         pset,
         [
@@ -44,8 +44,8 @@ def test_pathset():
 
 def test_merge_pathsets():
     path.anchor(_this)
-    pset1 = path.pathset(f"files")
-    pset2 = path.pathset(f"/files/subdir2/foo/foo.list")
+    pset1 = path.pathset("files")
+    pset2 = path.pathset("/files/subdir2/foo/foo.list")
     pset = path.pathset(pset1, pset2, ["files/subdir", "files/foo.bar"])
     _assert_paths(
         pset,
@@ -64,14 +64,14 @@ def test_cwd_use():
     path.anchor(path.cwd())
     pset = path.pathset(",")
     os.chdir(cwd)
-    _assert_paths(pset, [f"files/subdir"])
+    _assert_paths(pset, ["files/subdir"])
 
 
 def test_newest():
     path.clear()
     assert path.statistics() == (0, 0)
     path.clear()
-    pset = path.pathset(f"/files/test1.list", anchor=_this)
+    pset = path.pathset("/files/test1.list", anchor=_this)
     with open(f"{_this}/files/subdir2/foo/x.y", "w"):
         pass
     assert path.newest(pset) == f"{_this}/files/subdir2/foo/x.y"
@@ -97,7 +97,7 @@ def test_oldest():
 
 def test_directories():
     path.clear()
-    pset = path.pathset(f"/files/test1.list", "files/subdir2", anchor=_this)
+    pset = path.pathset("/files/test1.list", "files/subdir2", anchor=_this)
     directories = path.directories(pset)
     _assert_paths(
         directories,
@@ -123,3 +123,13 @@ def test_relative():
         "../../subdir2/bar/a.file",
         "../../subdir2/foo/z.w",
     ]
+
+
+def test_exists():
+    path.clear()
+    p, *_ = path.paths(path.pathset("/files/test1.list", anchor=_this))
+    assert not path.exists("/a/file/that/does/not/exist")
+    assert path.exists(p)
+    # Try again, to make sure cached values are working
+    assert not path.exists("/a/file/that/does/not/exist")
+    assert path.exists(p)

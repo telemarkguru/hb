@@ -25,7 +25,7 @@ _loaded_files: List[str] = []
 
 
 def load(hb_path: str) -> None:
-    """Run hb.py Python file"""
+    """Load and run hb.py Python file"""
     directory = dirname(hb_path)
     last_anchor = path.anchor(directory)
     sys.path.insert(0, directory)
@@ -36,8 +36,8 @@ def load(hb_path: str) -> None:
     return mod
 
 
-_scanned : Set[str] = set()
-_scan_queue : List[str] = []
+_scanned: Set[str] = set()
+_scan_queue: List[str] = []
 
 
 def scan(directories_pathset: dict) -> None:
@@ -59,7 +59,7 @@ def scan(directories_pathset: dict) -> None:
                 files = os.listdir(directory)
                 if "hb.py" in files:
                     load(f"{directory}/hb.py")
-                elif '.hbroot' not in files and directory != '/':
+                elif ".hbroot" not in files and directory != "/":
                     scan({dirname(directory): True})
             else:
                 scan({dirname(directory): True})

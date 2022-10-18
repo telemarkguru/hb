@@ -1,6 +1,5 @@
 from hb import read, path
 
-import os
 import os.path as op
 import pytest
 
@@ -14,7 +13,7 @@ def test_load():
 
 
 def test_scan():
-    pset = path.pathset(f"files/test1.list", anchor=_this)
+    pset = path.pathset("files/test2.list", anchor=_this)
     read.clear()
     read.scan(path.directories(pset))
     assert read.loaded_files() == [f"{_this}/files/hb.py"]
