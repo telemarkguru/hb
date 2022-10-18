@@ -2,7 +2,7 @@
 Read hb.py files
 """
 
-from .. import path
+from . import _path as path
 
 import importlib
 import importlib.util
