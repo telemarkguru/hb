@@ -133,6 +133,28 @@ def test_files():
     )
 
 
+def test_filter():
+    hb.clear()
+    pset = hb.pathset("/files/test1.list", anchor=_this)
+    foo = hb.filter(pset, r'/foo/')
+    _assert_paths(
+        foo,
+        [
+            "files/subdir2/foo/x.y",
+            "files/subdir2/foo/z.w",
+        ],
+    )
+    foo, bar = hb.filter(pset, r'/foo/', r'\.bar$')
+    _assert_paths(
+        foo,
+        [
+            "files/subdir2/foo/x.y",
+            "files/subdir2/foo/z.w",
+        ],
+    )
+    _assert_paths(bar, ["files/foo.bar", "files/subdir/foo.bar"])
+
+
 def test_relative():
     hb.clear()
     pset = hb.pathset("/files/test1.list", anchor=_this)

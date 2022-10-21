@@ -7,7 +7,7 @@ import re
 from os.path import abspath, normpath, dirname, relpath
 from os import getcwd
 from stat import S_ISDIR
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Tuple, Union, Generator
 
 
 _root = None  # root direcotory (found by scanning for .hbroot files)
@@ -17,6 +17,7 @@ _comment = re.compile(r"#.*$")
 
 # pathset type:
 PathSet = Dict[str, bool]
+AnyPath = Union[str, PathSet, Iterable[str], Iterable[PathSet]]
 
 
 def _find_root(path: str) -> str:
@@ -71,7 +72,7 @@ def canonical(path: str, anchor: str = None) -> str:
     return path
 
 
-def pathset(*paths, anchor: str = None) -> PathSet:
+def pathset(*paths: AnyPath, anchor: str = None) -> PathSet:
     """Create path set,
     Return a dict where the keys are canoical absolute paths.
 
@@ -209,6 +210,17 @@ def directories(pathset: PathSet) -> PathSet:
 def files(pathset: PathSet) -> PathSet:
     """Return all files in pathset. I.e. skip directories"""
     return {path: True for path in pathset if not isdir(path)}
+
+
+def filter(pathset: PathSet, *patterns: str) -> Tuple[PathSet]:
+    """Filter out paths matching a set of patterns
+    Return one pathset per pattern"""
+    regexps = [re.compile(x) for x in patterns]
+    pathsets =  tuple({x: True for x in pathset if r.search(x)}
+                      for r in regexps)
+    if len(pathsets) == 1:
+        return pathsets[0]
+    return pathsets
 
 
 def relative(frompath: str, pathset: PathSet) -> List[str]:
