@@ -97,7 +97,9 @@ def test_oldest():
 
 def test_directories():
     hb.clear()
-    pset = hb.pathset("/files/test1.list", "files/subdir2", anchor=_this)
+    pset = hb.pathset(
+        "/files/test1.list", "files/subdir2", "files/dirsymlink", anchor=_this
+    )
     directories = hb.directories(pset)
     _assert_paths(
         directories,
@@ -107,6 +109,26 @@ def test_directories():
             "files/subdir2/foo",
             "files/subdir2/bar",
             "files/subdir2",
+            "files/dirsymlink",
+        ],
+    )
+
+
+def test_files():
+    hb.clear()
+    pset = hb.pathset(
+        "/files/test1.list", "files/dirsymlink", "files/slink", anchor=_this
+    )
+    _assert_paths(
+        hb.files(pset),
+        [
+            "files/foo.bar",
+            "files/subdir/foo.bar",
+            "files/bar.foo",
+            "files/subdir2/foo/x.y",
+            "files/subdir2/bar/a.file",
+            "files/subdir2/foo/z.w",
+            "files/slink",
         ],
     )
 

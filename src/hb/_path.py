@@ -7,13 +7,16 @@ import re
 from os.path import abspath, normpath, dirname, relpath
 from os import getcwd
 from stat import S_ISDIR
-from typing import Dict, Iterable, List, Union
+from typing import Dict, Iterable, List, Tuple
 
 
 _root = None  # root direcotory (found by scanning for .hbroot files)
 _anchor = None
 
 _comment = re.compile(r"#.*$")
+
+# pathset type:
+PathSet = Dict[str, bool]
 
 
 def _find_root(path: str) -> str:
@@ -68,7 +71,7 @@ def canonical(path: str, anchor: str = None) -> str:
     return path
 
 
-def pathset(*paths, anchor: str = None) -> Dict[str, bool]:
+def pathset(*paths, anchor: str = None) -> PathSet:
     """Create path set,
     Return a dict where the keys are canoical absolute paths.
 
@@ -100,10 +103,10 @@ def paths(pathset: dict) -> Iterable[str]:
     return pathset.keys()
 
 
-_explist_cache: Dict[str, Dict[str, bool]] = {}
+_explist_cache: Dict[str, PathSet] = {}
 
 
-def _explist(listfilepath: str) -> Dict[str, bool]:
+def _explist(listfilepath: str) -> PathSet:
     """Expand listfile (.list)
     Return pathset.
     """
@@ -127,18 +130,20 @@ def _explist(listfilepath: str) -> Dict[str, bool]:
 
 _stat_cache: Dict[str, os.stat_result] = {}
 _stat_cnt = {"hit": 0, "miss": 0}
-_default_stat = os.stat_result((
-    0x81b4,  # mode -rw-rw-r-- plain file
-    0,  #inode
-    0,  # device
-    1,  # nlink
-    0,  # uid
-    0,  # gid
-    0,  # size
-    0,  # atime
-    0,  # mtime
-    0,  # ctime
-))
+_default_stat = os.stat_result(
+    (
+        0x81B4,  # mode -rw-rw-r-- plain file
+        0,  # inode
+        0,  # device
+        1,  # nlink
+        0,  # uid
+        0,  # gid
+        0,  # size
+        0,  # atime
+        0,  # mtime
+        0,  # ctime
+    )
+)
 
 
 def stat(path: str) -> os.stat_result:
@@ -173,12 +178,12 @@ def exists(path: str) -> bool:
     return stat(path).st_ctime != 0
 
 
-def newest(pathset: dict) -> str:
+def newest(pathset: PathSet) -> str:
     """Return newest path in pathset"""
     return max(pathset, key=lambda x: stat(x).st_mtime)
 
 
-def oldest(pathset: dict) -> str:
+def oldest(pathset: PathSet) -> str:
     """Return oldest path in pathset"""
     return min(pathset, key=lambda x: stat(x).st_mtime)
 
@@ -186,7 +191,7 @@ def oldest(pathset: dict) -> str:
 _dir_cache: Dict[str, str] = {}
 
 
-def directories(pathset: Dict[str, bool]) -> Dict[str, bool]:
+def directories(pathset: PathSet) -> PathSet:
     """Return directory part of all paths in pathset"""
     pset = {}
     for path in pathset:
@@ -201,17 +206,22 @@ def directories(pathset: Dict[str, bool]) -> Dict[str, bool]:
     return pset
 
 
-def relative(frompath: str, pathset: Dict[str, bool]) -> List[str]:
+def files(pathset: PathSet) -> PathSet:
+    """Return all files in pathset. I.e. skip directories"""
+    return {path: True for path in pathset if not isdir(path)}
+
+
+def relative(frompath: str, pathset: PathSet) -> List[str]:
     """Return list of relative paths for all paths in pathset"""
     return [relpath(p, frompath) for p in pathset]
 
 
-def statistics():
+def statistics() -> Tuple[int, int]:
     """Return file stat cache statistics: (hit-count, miss-count)."""
     return _stat_cnt["hit"], _stat_cnt["miss"]
 
 
-def clear():
+def clear() -> None:
     """Clear path caches and default root and anchor paths"""
     global _root, _anchor
     _stat_cache.clear()
