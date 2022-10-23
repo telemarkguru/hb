@@ -17,7 +17,8 @@ _comment = re.compile(r"#.*$")
 
 # pathset type:
 PathSet = Dict[str, bool]
-AnyPath = Union[str, PathSet, Iterable[str], Iterable[PathSet]]
+AnyPath = Union[str, PathSet, Iterable[str],
+                Iterable[Union[PathSet, str]]]
 
 
 def _find_root(path: str) -> str:
@@ -212,7 +213,10 @@ def files(pathset: PathSet) -> PathSet:
     return {path: True for path in pathset if not isdir(path)}
 
 
-def filter(pathset: PathSet, *patterns: str) -> Tuple[PathSet]:
+_FilterReturnType = Union[Tuple[PathSet, ...], PathSet]
+
+
+def filter(pathset: PathSet, *patterns: str) -> _FilterReturnType:
     """Filter out paths matching a set of patterns
     Return one pathset per pattern"""
     regexps = [re.compile(x) for x in patterns]
