@@ -1,5 +1,42 @@
-# from .. import _read
+import hb
+
+import os
+import os.path as op
+import pytest
+
+_this = op.normpath(op.abspath(op.dirname(__file__)))
 
 
-def test_nada():
-    pass
+def test_rule_define():
+    hb.clear()
+    hb.anchor(_this)
+
+    @hb.rule("cat $in >#out")
+    def test_nada():
+        """
+        Documentation
+        """
+        hb.build(test_nada, "a")
+        return 42
+
+    for name, doc in hb.rules():
+        assert name == "test_nada"
+        assert doc.strip() == "Documentation"
+
+    assert hb.test_nada() == 42
+    assert hb.targets == {f"{_this}/a": True}
+
+
+def test_rule_redefine():
+    hb.clear()
+
+    @hb.rule("foo")
+    def foo():
+        pass
+
+    hb.foo()
+
+    with pytest.raises(KeyError, match=r"Rule foo already defined"):
+        @hb.rule("foo")
+        def foo():
+            pass

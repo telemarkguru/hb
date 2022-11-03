@@ -1,9 +1,19 @@
 from typing import Dict, Callable
-from ._path import PathSet, pathset, AnyPath
 from string import Template
+from dataclasses import dataclass
+import sys
+from ._path import PathSet, pathset, AnyPath
 
 
-_rules: Dict[str, Callable] = {}
+@dataclass
+class _Rule:
+    name: str
+    command: str
+    func: Callable
+    used: bool = False
+
+
+_rules: Dict[str, _Rule] = {}
 targets: PathSet = {}
 
 
@@ -28,12 +38,12 @@ def rule(command: str) -> Callable[[Callable], Callable]:
             func.used = True
             return function(*args, **kwargs)
 
-        func.command = command
-        func.used = False
+        rule = _Rule(funcname, command, func)
         func.__doc__ = function.__doc__
         if funcname in _rules:
             raise KeyError(f"Rule {funcname} already defined")
-        _rules[funcname] = func
+        _rules[funcname] = rule
+        setattr(sys.modules["hb"], funcname, func)
 
         return func
 
@@ -66,3 +76,15 @@ def build(
     oodeps = pathset(oodeps)
 
     targets.update(dst)
+
+
+def rules():
+    """Iterate over all available rules, and yield
+    (name, documentation) for each rule."""
+    for name in _rules:
+        yield name, _rules[name].func.__doc__
+
+
+def clear():
+    _rules.clear()
+    targets.clear()
