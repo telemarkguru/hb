@@ -43,6 +43,7 @@ def test_pathset():
 
 
 def test_merge_pathsets():
+    hb.clear()
     hb.anchor(_this)
     pset1 = hb.pathset("files")
     pset2 = hb.pathset("/files/subdir2/foo/foo.list")
@@ -61,6 +62,7 @@ def test_merge_pathsets():
 def test_cwd_use():
     cwd = os.getcwd()
     os.chdir(f"{_this}/files/subdir")
+    hb.clear()
     hb.anchor(hb.cwd())
     pset = hb.pathset(",")
     os.chdir(cwd)

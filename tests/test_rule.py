@@ -11,7 +11,7 @@ def test_rule_define():
     hb.clear()
     hb.anchor(_this)
 
-    @hb.rule("cat $in >#out")
+    @hb.rule("cat $in > $out")
     def test_nada():
         """
         Documentation
@@ -25,6 +25,20 @@ def test_rule_define():
 
     assert hb.test_nada() == 42
     assert hb.targets == {f"{_this}/a": True}
+    assert hb._rule._builds[0].rule == "test_nada"
+
+
+def test_depfile():
+    os.chdir(_this + "/..")
+    hb.clear()
+    hb.anchor(_this)
+    @hb.rule("cat $in > $out")
+    def depfile():
+        hb.build(depfile, "foo", depfile=True)
+
+    depfile()
+    assert hb._rule._builds[0].vars["depfile"] == ".hb/tests__foo.d"
+
 
 
 def test_rule_redefine():

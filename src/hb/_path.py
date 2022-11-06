@@ -12,8 +12,8 @@ from typing import Dict, Iterable, List, Tuple, Union, Generator
 
 _root = None  # root direcotory (found by scanning for .hbroot files)
 _anchor = None
-
 _comment = re.compile(r"#.*$")
+_cwd = normpath(abspath(os.getcwd()))
 
 # pathset type:
 PathSet = Dict[str, bool]
@@ -46,7 +46,7 @@ def root() -> str:
 
 def cwd() -> str:
     """Return canonical representation of current work directory"""
-    return normpath(abspath(getcwd()))
+    return _cwd
 
 
 def canonical(path: str, anchor: str = None) -> str:
@@ -239,10 +239,11 @@ def statistics() -> Tuple[int, int]:
 
 def clear() -> None:
     """Clear path caches and default root and anchor paths"""
-    global _root, _anchor
+    global _root, _anchor, _cwd
     _stat_cache.clear()
     _stat_cnt.update({"hit": 0, "miss": 0})
     _dir_cache.clear()
     _explist_cache.clear()
     _root = None
     _anchor = None
+    _cwd = normpath(abspath(os.getcwd()))
