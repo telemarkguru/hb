@@ -28,7 +28,7 @@ def test_root():
 
 
 def test_pathset():
-    pset = hb.pathset("/files/test1.list", anchor=_this)
+    pset = hb.pathset("$root/files/test1.list", anchor=_this)
     _assert_paths(
         pset,
         [
@@ -46,7 +46,7 @@ def test_merge_pathsets():
     hb.clear()
     hb.anchor(_this)
     pset1 = hb.pathset("files")
-    pset2 = hb.pathset("/files/subdir2/foo/foo.list")
+    pset2 = hb.pathset("$root/files/subdir2/foo/foo.list")
     pset = hb.pathset(pset1, pset2, ["files/subdir", "files/foo.bar"])
     _assert_paths(
         pset,
@@ -73,7 +73,7 @@ def test_newest():
     hb.clear()
     assert hb.statistics() == (0, 0)
     hb.clear()
-    pset = hb.pathset("/files/test1.list", anchor=_this)
+    pset = hb.pathset("$root/files/test1.list", anchor=_this)
     with open(f"{_this}/files/subdir2/foo/x.y", "w"):
         pass
     assert hb.newest(pset) == f"{_this}/files/subdir2/foo/x.y"
@@ -89,7 +89,7 @@ def test_newest():
 
 def test_oldest():
     hb.clear()
-    pset = hb.pathset("/files/subdir2/bar/files.list", anchor=_this)
+    pset = hb.pathset("$root/files/subdir2/bar/files.list", anchor=_this)
     for p in ("bar/a.file", "foo/z.w"):
         with open(f"{_this}/files/subdir2/{p}", "w"):
             pass
@@ -100,7 +100,10 @@ def test_oldest():
 def test_directories():
     hb.clear()
     pset = hb.pathset(
-        "/files/test1.list", "files/subdir2", "files/dirsymlink", anchor=_this
+        "$root/files/test1.list",
+        "files/subdir2",
+        "files/dirsymlink",
+        anchor=_this
     )
     directories = hb.directories(pset)
     _assert_paths(
@@ -119,7 +122,10 @@ def test_directories():
 def test_files():
     hb.clear()
     pset = hb.pathset(
-        "/files/test1.list", "files/dirsymlink", "files/slink", anchor=_this
+        "$root/files/test1.list",
+        "files/dirsymlink",
+        "files/slink",
+        anchor=_this
     )
     _assert_paths(
         hb.files(pset),
@@ -137,7 +143,7 @@ def test_files():
 
 def test_filter():
     hb.clear()
-    pset = hb.pathset("/files/test1.list", anchor=_this)
+    pset = hb.pathset("$root/files/test1.list", anchor=_this)
     foo = hb.filter(pset, r'/foo/')
     _assert_paths(
         foo,
@@ -159,7 +165,7 @@ def test_filter():
 
 def test_relative():
     hb.clear()
-    pset = hb.pathset("/files/test1.list", anchor=_this)
+    pset = hb.pathset("$root/files/test1.list", anchor=_this)
     rp = hb.relative(f"{_this}/files/subdir/ping", pset)
     assert rp == [
         "../../foo.bar",
@@ -173,7 +179,7 @@ def test_relative():
 
 def test_exists():
     hb.clear()
-    p, *_ = hb.paths(hb.pathset("/files/test1.list", anchor=_this))
+    p, *_ = hb.paths(hb.pathset(f"/{_this}/files/test1.list", anchor=_this))
     assert not hb.exists("/a/file/that/does/not/exist")
     assert hb.exists(p)
     # Try again, to make sure cached values are working

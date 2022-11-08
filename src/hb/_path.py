@@ -61,15 +61,19 @@ def canonical(path: str, anchor: str = None) -> str:
     if not _root:
         anchor = anchor or _anchor or "."
         _root = _find_root(anchor)
-    if path.startswith("/"):
-        path = f"{_root}{path}"
+    if path[0] == "/":
+        pass
+    elif path.startswith("$root/"):
+        path = path.replace("$root", _root, 1)
     else:
         anchor = anchor or _anchor
         path = f"{anchor}/{path}"
     path = normpath(path)
+    # Handle special cases not covered by normpath:
     if path.endswith("/,"):
-        # Handle special case not covered by normpath
         path = path[:-2]
+    if path.startswith('//'):
+        path = path[1:]
     return path
 
 
