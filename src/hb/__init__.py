@@ -19,7 +19,9 @@ from ._path import (
 
 from ._read import load, scan, loaded_files, clear as read_clear
 
-from ._rule import rule, build, rules, targets, clear as rule_clear
+from ._rule import (
+    rule, build, rules, targets, clear as rule_clear, write_ninja,
+)
 
 def clear():
     path_clear()
@@ -46,5 +48,10 @@ __all__ = [
     "load",
     "scan",
     "loaded_files",
+    "rule",
+    "build",
+    "rules",
+    "targets",
+    "write_ninja",
     "clear",
 ]
