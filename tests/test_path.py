@@ -103,7 +103,7 @@ def test_directories():
         "$root/files/test1.list",
         "files/subdir2",
         "files/dirsymlink",
-        anchor=_this
+        anchor=_this,
     )
     directories = hb.directories(pset)
     _assert_paths(
@@ -125,7 +125,7 @@ def test_files():
         "$root/files/test1.list",
         "files/dirsymlink",
         "files/slink",
-        anchor=_this
+        anchor=_this,
     )
     _assert_paths(
         hb.files(pset),
@@ -144,7 +144,7 @@ def test_files():
 def test_filter():
     hb.clear()
     pset = hb.pathset("$root/files/test1.list", anchor=_this)
-    foo = hb.filter(pset, r'/foo/')
+    foo = hb.filter(pset, r"/foo/")
     _assert_paths(
         foo,
         [
@@ -152,7 +152,7 @@ def test_filter():
             "files/subdir2/foo/z.w",
         ],
     )
-    foo, bar = hb.filter(pset, r'/foo/', r'\.bar$')
+    foo, bar = hb.filter(pset, r"/foo/", r"\.bar$")
     _assert_paths(
         foo,
         [

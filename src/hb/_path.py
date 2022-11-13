@@ -7,7 +7,7 @@ import re
 from os.path import abspath, normpath, dirname, relpath
 from os import getcwd
 from stat import S_ISDIR
-from typing import Dict, Iterable, List, Tuple, Union, Generator
+from typing import Dict, Iterable, List, Tuple, Union
 
 
 _root = None  # root direcotory (found by scanning for .hbroot files)
@@ -17,8 +17,7 @@ _cwd = normpath(abspath(os.getcwd()))
 
 # pathset type:
 PathSet = Dict[str, bool]
-AnyPath = Union[str, PathSet, Iterable[str],
-                Iterable[Union[PathSet, str]]]
+AnyPath = Union[str, PathSet, Iterable[str], Iterable[Union[PathSet, str]]]
 
 
 def _find_root(path: str) -> str:
@@ -72,7 +71,7 @@ def canonical(path: str, anchor: str = None) -> str:
     # Handle special cases not covered by normpath:
     if path.endswith("/,"):
         path = path[:-2]
-    if path.startswith('//'):
+    if path.startswith("//"):
         path = path[1:]
     return path
 
@@ -224,8 +223,9 @@ def filter(pathset: PathSet, *patterns: str) -> _FilterReturnType:
     """Filter out paths matching a set of patterns
     Return one pathset per pattern"""
     regexps = [re.compile(x) for x in patterns]
-    pathsets =  tuple({x: True for x in pathset if r.search(x)}
-                      for r in regexps)
+    pathsets = tuple(
+        {x: True for x in pathset if r.search(x)} for r in regexps
+    )
     if len(pathsets) == 1:
         return pathsets[0]
     return pathsets
@@ -250,4 +250,4 @@ def clear() -> None:
     _explist_cache.clear()
     _root = None
     _anchor = None
-    _cwd = normpath(abspath(os.getcwd()))
+    _cwd = normpath(abspath(getcwd()))

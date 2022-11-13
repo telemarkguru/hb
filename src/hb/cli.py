@@ -1,11 +1,10 @@
-from . import path
+from ._path import pathset, relative, cwd
 import sys
-import os
 
 
 def explist():
-    paths = path.pathset(sys.argv[1:], anchor=path.cwd())
-    for p in path.relative(path.cwd(), paths):
+    paths = pathset(sys.argv[1:], anchor=cwd())
+    for p in relative(cwd(), paths):
         print(p)
 
 

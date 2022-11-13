@@ -1,5 +1,4 @@
-from typing import Dict, Callable, Union, List
-from string import Template
+from typing import Dict, Callable, List, Tuple
 from dataclasses import dataclass, field
 import sys
 import re
@@ -8,16 +7,26 @@ from ._path import PathSet, pathset, AnyPath, directories, relative, cwd
 from ._read import scan
 
 
+_CallBack = Callable[[PathSet], Tuple[PathSet, PathSet]]
+
+
+def _default_callback(_: PathSet):
+    return {}, {}
+
+
 @dataclass
 class _Rule:
     name: str
     command: str
     doc: str
+    deps: AnyPath
+    oodeps: AnyPath
     func: Callable = lambda: None
     used: bool = False
     pool: str = ""
     maxpar: int = 0
     vars: Dict[str, str] = field(default_factory=dict)
+    callback: _CallBack = _default_callback
 
 
 @dataclass
@@ -28,7 +37,6 @@ class _Build:
     deps: PathSet
     oodeps: PathSet
     vars: Dict[str, str]
-    callback: Union[Callable, None]
 
 
 _rules: Dict[str, _Rule] = {}
@@ -53,16 +61,34 @@ _stdvar = set(
 
 
 def rule(
-    command: str, maxpar: int = 0, pool: str = "", **vars: Dict[str, str],
+    command: str,
+    maxpar: int = 0,
+    pool: str = "",
+    deps: AnyPath = {},
+    oodeps: AnyPath = {},
+    callback: _CallBack = _default_callback,
+    **vars: str,
 ) -> Callable[[Callable], Callable]:
     """Rule decorator, create a rule function
     Arguments:
 
         command: Command string, $-variables are expanded.
+        maxpar: Maximum parallel runining processes of this rule.
+                Default no limit.
+        pool: Ninja pool. Default no pool.
+        deps: Optional rule dependencies.
+        oodpes: Optional rule order only dependencies.
+        callback: Optional rule callback, called after all rules and
+                  builds have been defined, if the rule is used.
+                  The callback thakes a pathset with all targets,
+                  and shall return one pathset for extra dependencies
+                  and one pathset for extra order only dependencies.
+        **vars: Optional default values for command variables.
 
-        Standard variables:
+        Standard variables in command string:
            $out - destination files/targets
            $in - direct dependencies
+           $depfile - lazy dependencies file
 
         Other variables are axpanded if they are defined
         as keyword arguments to the build() function.
@@ -70,7 +96,7 @@ def rule(
 
     def f(function: Callable) -> Callable:
         funcname = function.__name__
-        rule = _Rule(funcname, command, function.__doc__)
+        rule = _Rule(funcname, command, function.__doc__ or "", deps, oodeps)
 
         def func(*args, **kwargs):
             rule.used = True
@@ -92,7 +118,7 @@ def rule(
     return f
 
 
-def _mange_path(path):
+def _mangle_path(path):
     return path.replace("/", "__").replace("..", "up")
 
 
@@ -102,8 +128,7 @@ def build(
     src: AnyPath = {},
     deps: AnyPath = {},
     oodeps: AnyPath = {},
-    callback: Union[Callable, None] = None,
-    **vars: Dict[str, str],
+    **vars: str,
 ) -> None:
     """Create build for rule
     Called from rule function. Arguments:
@@ -114,9 +139,6 @@ def build(
         deps: Indirect dependencies
         oodeps: Order only dependencies
         depfile: Use optional lazy dependency file (True or False)
-        callback: Optional function that can add to oodeps after
-                  all build calls have been processed.
-                  The function shall return a pathset and take no arguments.
         **vars: variables to be expanded in the rule command string
     """
     dst = pathset(dst)
@@ -124,9 +146,7 @@ def build(
     deps = pathset(deps)
     oodeps = pathset(oodeps)
     targets.update(dst)
-    _builds.append(
-        _Build(function.__name__, dst, src, deps, oodeps, vars, callback)
-    )
+    _builds.append(_Build(function.__name__, dst, src, deps, oodeps, vars))
     scan(directories({**src, **deps, **oodeps}))
 
 
@@ -149,6 +169,7 @@ def _extract_cmd_vars(rule):
         var = f"{name}_{var}"
         vars[var] = ""
         return f"${{{var}}}"
+
     for var in rule.vars:
         vars[f"{name}_{var}"] = rule.vars[var]
 
@@ -164,6 +185,9 @@ def _write_rule(writer, rule):
     if maxpar:
         pool = f"{rule.name}_pool"
         writer.pool(pool, maxpar)
+    edeps, eoodeps = rule.callback(targets)
+    rule.deps.update(edeps)
+    rule.oodeps.update(eoodeps)
     writer.rule(
         rule.name,
         command,
@@ -175,14 +199,14 @@ def _write_rule(writer, rule):
 
 
 def _write_build(writer, build):
+    rule = _rules[build.rule]
     dst = relative(cwd(), build.dst)
     src = relative(cwd(), build.src)
-    deps = relative(cwd(), build.deps)
-    oodeps = relative(cwd(), build.oodeps)
+    deps = relative(cwd(), {**build.deps, **rule.deps})
+    oodeps = relative(cwd(), {**build.oodeps, **rule.oodeps})
     vars = build.vars
-    rule = _rules[build.rule]
     if rule.vars.get("depfile"):
-        vars["depfile"] = ".hb/" + _mange_path(f"{dst[0]}.d")
+        vars["depfile"] = ".hb/" + _mangle_path(f"{dst[0]}.d")
     writer.build(dst, build.rule, src, deps, oodeps, vars)
     if "/" not in dst[0]:
         writer.default(dst)
