@@ -13,6 +13,7 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: Unix",
 ]
+requires = ["ninja", "click"]
 
 [project.urls]
 "Homepage" = "https://github.com/telemarkguru/hb"
@@ -26,6 +27,9 @@ explist = "hb.cli:explist"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[options.extra_require]
+testing = ["pytest", "pytest-cov"]
+
 [tool.pytest.ini_options]
 addopts = [
     "--import-mode=importlib",
@@ -36,6 +40,7 @@ testpaths = [
     "src",
     "tests",
 ]
+
 [tool.coverage.run]
 source = ["src", "tests"]
 
