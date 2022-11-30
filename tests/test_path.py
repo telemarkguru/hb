@@ -3,6 +3,7 @@ import hb
 import os
 import os.path as op
 import pytest
+import time
 
 
 _this = op.normpath(op.abspath(op.dirname(__file__)))
@@ -80,6 +81,7 @@ def test_newest():
     assert hb.statistics() == (0, len(pset))
     with open(f"{_this}/files/subdir2/bar/a.file", "w"):
         pass
+    time.sleep(1)
     assert hb.newest(pset) == f"{_this}/files/subdir2/foo/x.y"
     assert hb.statistics() == (len(pset), len(pset))
     hb.clear()
@@ -93,6 +95,7 @@ def test_oldest():
     for p in ("bar/a.file", "foo/z.w"):
         with open(f"{_this}/files/subdir2/{p}", "w"):
             pass
+    time.sleep(1)
     assert hb.oldest(pset) == f"{_this}/files/subdir2/foo/x.y"
     assert hb.newest(pset) == f"{_this}/files/subdir2/foo/z.w"
 
