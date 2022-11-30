@@ -3,7 +3,6 @@ import hb
 import os
 import os.path as op
 import pytest
-import time
 
 
 _this = op.normpath(op.abspath(op.dirname(__file__)))
@@ -70,18 +69,21 @@ def test_cwd_use():
     _assert_paths(pset, ["files/subdir"])
 
 
+def _touch(path):
+    os.unlink(path)
+    with open(path, "w") as fh:
+        fh.write("x")
+
+
 def test_newest():
     hb.clear()
     assert hb.statistics() == (0, 0)
     hb.clear()
     pset = hb.pathset("$root/files/test1.list", anchor=_this)
-    with open(f"{_this}/files/subdir2/foo/x.y", "w"):
-        pass
+    _touch(f"{_this}/files/subdir2/foo/x.y")
     assert hb.newest(pset) == f"{_this}/files/subdir2/foo/x.y"
     assert hb.statistics() == (0, len(pset))
-    with open(f"{_this}/files/subdir2/bar/a.file", "w"):
-        pass
-    time.sleep(1)
+    _touch(f"{_this}/files/subdir2/bar/a.file")
     assert hb.newest(pset) == f"{_this}/files/subdir2/foo/x.y"
     assert hb.statistics() == (len(pset), len(pset))
     hb.clear()
@@ -93,9 +95,7 @@ def test_oldest():
     hb.clear()
     pset = hb.pathset("$root/files/subdir2/bar/files.list", anchor=_this)
     for p in ("bar/a.file", "foo/z.w"):
-        with open(f"{_this}/files/subdir2/{p}", "w"):
-            pass
-    time.sleep(1)
+        _touch(f"{_this}/files/subdir2/{p}")
     assert hb.oldest(pset) == f"{_this}/files/subdir2/foo/x.y"
     assert hb.newest(pset) == f"{_this}/files/subdir2/foo/z.w"
 
