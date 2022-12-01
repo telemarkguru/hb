@@ -70,7 +70,8 @@ def test_cwd_use():
 
 
 def _touch(path):
-    os.unlink(path)
+    if op.exists(path):
+        os.unlink(path)
     with open(path, "w") as fh:
         fh.write("x")
 
@@ -79,25 +80,32 @@ def test_newest():
     hb.clear()
     assert hb.statistics() == (0, 0)
     hb.clear()
-    pset = hb.pathset("$root/files/test1.list", anchor=_this)
-    _touch(f"{_this}/files/subdir2/foo/x.y")
-    assert hb.newest(pset) == f"{_this}/files/subdir2/foo/x.y"
+    n1 = f"{_this}/onew.txt"
+    n2 = f"{_this}/newest.txt"
+    _touch(n1)
+    _touch(n2)
+    pset = hb.pathset(
+        "$root/files/test1.list", n1, n2, anchor=_this
+    )
+    assert hb.newest(pset) == n2
     assert hb.statistics() == (0, len(pset))
-    _touch(f"{_this}/files/subdir2/bar/a.file")
-    assert hb.newest(pset) == f"{_this}/files/subdir2/foo/x.y"
+    _touch(n1)
+    assert hb.newest(pset) == n2
     assert hb.statistics() == (len(pset), len(pset))
     hb.clear()
     assert hb.statistics() == (0, 0)
-    assert hb.newest(pset) == f"{_this}/files/subdir2/bar/a.file"
+    assert hb.newest(pset) == n1
 
 
 def test_oldest():
     hb.clear()
-    pset = hb.pathset("$root/files/subdir2/bar/files.list", anchor=_this)
+    n1 = f"{_this}/onew.txt"
+    pset = hb.pathset("$root/files/subdir2/bar/files.list", n1, anchor=_this)
     for p in ("bar/a.file", "foo/z.w"):
         _touch(f"{_this}/files/subdir2/{p}")
+    _touch(n1)
     assert hb.oldest(pset) == f"{_this}/files/subdir2/foo/x.y"
-    assert hb.newest(pset) == f"{_this}/files/subdir2/foo/z.w"
+    assert hb.newest(pset) == n1
 
 
 def test_directories():
