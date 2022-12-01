@@ -1,0 +1,15 @@
+builddir = .hb
+gcc_depfile = True
+gcc_opts = 
+rule gcc
+  command = gcc -MM $depfile -c ${gcc_opts} -o $out $in
+  depfile = True
+
+build a.c.o: gcc a.c
+  depfile = .hb/a.c.o.d
+default a.c.o
+build b.c.o: gcc b.c
+  depfile = .hb/b.c.o.d
+default b.c.o
+build ../d/c.c.o: gcc ../d/c.c
+  depfile = .hb/up__d__c.c.o.d

@@ -7,6 +7,11 @@ import pytest
 _this = op.normpath(op.abspath(op.dirname(__file__)))
 
 
+def _compare_exp(file):
+    with open(file) as fha, open(f"{file}.exp") as fhe:
+        assert fha.read() == fhe.read()
+
+
 def test_rule_define():
     hb.clear()
     hb.anchor(_this)
@@ -51,10 +56,7 @@ def test_rule_redefine():
     hb.foo()
 
     with pytest.raises(KeyError, match=r"Rule foo already defined"):
-
-        @hb.rule("foo")
-        def foo():
-            pass
+        hb.rule("bar")(foo)
 
 
 def test_write_ninja():
@@ -71,5 +73,28 @@ def test_write_ninja():
             hb.build(gcc, f"{file}.o", file)
 
     gcc("a.c", "b.c", "../d/c.c")
-    with open(f"{_this}/build.ninja", "w") as fh:
+    ninja = f"{_this}/build.ninja"
+    with open(ninja, "w") as fh:
         hb.write_ninja(fh)
+    _compare_exp(ninja)
+
+
+def test_pool():
+    os.chdir(_this)
+    hb.clear()
+    hb.anchor(_this)
+
+    @hb.rule(
+        "echo hello >$out && cat $in >>$out",
+        maxpar=2,
+    )
+    def hello(*files):
+        files = hb.pathset(files)
+        for file in files:
+            hb.build(hello, f"{file}.hello", file)
+
+    hello("files/hb.py")
+    ninja = f"{_this}/build2.ninja"
+    with open(ninja, "w") as fh:
+        hb.write_ninja(fh)
+    _compare_exp(ninja)
