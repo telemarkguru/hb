@@ -161,6 +161,7 @@ def stat(path: str) -> os.stat_result:
     fstat = _stat_cache.get(path)
     if fstat is not None:
         _stat_cnt["hit"] += 1
+        print(f'HIT {path} {fstat.st_mtime}')
         return fstat
     try:
         fstat = os.stat(path)
@@ -168,6 +169,7 @@ def stat(path: str) -> os.stat_result:
         fstat = _default_stat
     _stat_cache[path] = fstat
     _stat_cnt["miss"] += 1
+    print(f'MISS {path} {fstat.st_mtime}')
     return fstat
 
 
