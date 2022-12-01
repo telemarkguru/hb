@@ -161,7 +161,7 @@ def stat(path: str) -> os.stat_result:
     fstat = _stat_cache.get(path)
     if fstat is not None:
         _stat_cnt["hit"] += 1
-        print(f'HIT {path} {fstat.st_mtime}')
+        print(f'HIT {path} {fstat.st_mtime_ns}')
         return fstat
     try:
         fstat = os.stat(path)
@@ -169,7 +169,7 @@ def stat(path: str) -> os.stat_result:
         fstat = _default_stat
     _stat_cache[path] = fstat
     _stat_cnt["miss"] += 1
-    print(f'MISS {path} {fstat.st_mtime}')
+    print(f'MISS {path} {fstat.st_mtime_ns}')
     return fstat
 
 
@@ -187,12 +187,12 @@ def exists(path: str) -> bool:
 
 def newest(pathset: PathSet) -> str:
     """Return newest path in pathset"""
-    return max(pathset, key=lambda x: stat(x).st_mtime)
+    return max(pathset, key=lambda x: stat(x).st_mtime_ns)
 
 
 def oldest(pathset: PathSet) -> str:
     """Return oldest path in pathset"""
-    return min(pathset, key=lambda x: stat(x).st_mtime)
+    return min(pathset, key=lambda x: stat(x).st_mtime_ns)
 
 
 _dir_cache: Dict[str, str] = {}
