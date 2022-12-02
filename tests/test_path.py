@@ -3,6 +3,7 @@ import hb
 import os
 import os.path as op
 import pytest
+import time
 
 
 _this = op.normpath(op.abspath(op.dirname(__file__)))
@@ -74,6 +75,14 @@ def _touch(path):
         os.unlink(path)
     with open(path, "w") as fh:
         fh.write("x")
+    t0 = os.stat(path).st_mtime_ns
+    while True:
+        with open(path, "w") as fh:
+            fh.write("x")
+        t1 = os.stat(path).st_mtime_ns
+        if t1 > t0:
+            return
+        time.sleep(1)
 
 
 def test_newest():
@@ -84,9 +93,7 @@ def test_newest():
     n2 = f"{_this}/newest.txt"
     _touch(n1)
     _touch(n2)
-    pset = hb.pathset(
-        "$root/files/test1.list", n1, n2, anchor=_this
-    )
+    pset = hb.pathset("$root/files/test1.list", n1, n2, anchor=_this)
     assert hb.newest(pset) == n2
     assert hb.statistics() == (0, len(pset))
     _touch(n1)
