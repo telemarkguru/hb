@@ -5,4 +5,4 @@ rule hello
   command = echo hello >$out && cat $in >>$out
   pool = hello_pool
 
-build files/hb.py.hello: hello files/hb.py
+build files/hb.py.hello: hello files/hb.py | files/subdir/foo.bar

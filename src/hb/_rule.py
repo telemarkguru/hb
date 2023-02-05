@@ -1,16 +1,16 @@
 from typing import Dict, Callable, List, Tuple
 from dataclasses import dataclass, field
-import sys
 import re
 import ninja
-from ._path import PathSet, pathset, AnyPath, directories, relative, cwd
-from ._read import scan
+from ._path import PathSet, pathset, AnyPath, directories, relative
+from ._path import _Context as _PathContext
+from ._read import scan, load
 
 
 _CallBack = Callable[[PathSet], Tuple[PathSet, PathSet]]
 
 
-def _default_callback(_: PathSet):
+def _default_callback(_: PathSet) -> Tuple[PathSet, PathSet]:
     return {}, {}
 
 
@@ -19,8 +19,8 @@ class _Rule:
     name: str
     command: str
     doc: str
-    deps: AnyPath
-    oodeps: AnyPath
+    deps: PathSet
+    oodeps: PathSet
     func: Callable = lambda: None
     used: bool = False
     pool: str = ""
@@ -39,12 +39,16 @@ class _Build:
     vars: Dict[str, str]
 
 
-_rules: Dict[str, _Rule] = {}
-targets: PathSet = {}
-_builds: List[_Build] = []
+@dataclass
+class _Context(_PathContext):
+    _rules: Dict[str, _Rule] = field(default_factory=dict)
+    targets: PathSet = field(default_factory=dict)
+    _builds: List[_Build] = field(default_factory=list)
+    _scanned: PathSet = field(default_factory=dict)
+
 
 _var = re.compile(r"\$\{?(\w+)\}?")
-_stdvar = set(
+_ninja_stdvar = set(
     (
         "in",
         "out",
@@ -61,12 +65,14 @@ _stdvar = set(
 
 
 def rule(
+    context: _Context,
     command: str,
     maxpar: int = 0,
     pool: str = "",
     deps: AnyPath = {},
     oodeps: AnyPath = {},
     callback: _CallBack = _default_callback,
+    name: str = "",
     **vars: str,
 ) -> Callable[[Callable], Callable]:
     """Rule decorator, create a rule function
@@ -83,6 +89,7 @@ def rule(
                   The callback thakes a pathset with all targets,
                   and shall return one pathset for extra dependencies
                   and one pathset for extra order only dependencies.
+        name: Optional rule name, if not given the function name is used.
         **vars: Optional default values for command variables.
 
         Standard variables in command string:
@@ -95,8 +102,14 @@ def rule(
     """
 
     def f(function: Callable) -> Callable:
-        funcname = function.__name__
-        rule = _Rule(funcname, command, function.__doc__ or "", deps, oodeps)
+        funcname = name or function.__name__
+        rule = _Rule(
+            funcname,
+            command,
+            function.__doc__ or "",
+            pathset(context, deps),
+            pathset(context, oodeps),
+        )
 
         def func(*args, **kwargs):
             rule.used = True
@@ -108,10 +121,10 @@ def rule(
         rule.vars = vars
         rule.pool = pool
         rule.maxpar = maxpar
-        if funcname in _rules:
-            raise KeyError(f"Rule {funcname} already defined")
-        _rules[funcname] = rule
-        setattr(sys.modules["hb"], funcname, func)
+        if funcname in context._rules or getattr(context, funcname, False):
+            raise KeyError(f"Name {funcname} already defined")
+        context._rules[funcname] = rule
+        setattr(context, funcname, func)
 
         return func
 
@@ -123,6 +136,7 @@ def _mangle_path(path):
 
 
 def build(
+    context: _Context,
     function: Callable,
     dst: AnyPath = {},
     src: AnyPath = {},
@@ -141,21 +155,32 @@ def build(
         depfile: Use optional lazy dependency file (True or False)
         **vars: variables to be expanded in the rule command string
     """
-    dst = pathset(dst)
-    src = pathset(src)
-    deps = pathset(deps)
-    oodeps = pathset(oodeps)
-    targets.update(dst)
-    _builds.append(_Build(function.__name__, dst, src, deps, oodeps, vars))
-    scan(directories({**src, **deps, **oodeps}))
+    dst = pathset(context, dst)
+    src = pathset(context, src)
+    deps = pathset(context, deps)
+    oodeps = pathset(context, oodeps)
+    context.targets.update(dst)
+    context._builds.append(
+        _Build(function.__name__, dst, src, deps, oodeps, vars)
+    )
+
+    files, context._scanned = scan(
+        directories(context, {**src, **deps, **oodeps}),
+        "hb.py",
+        context._scanned,
+    )
+    for file in files:
+        mod = load(file)
+        if hasattr(mod, "build"):
+            mod.build(context)
 
 
-def rules():
+def rules(context: _Context):
     """Iterate over all available rules,
     and yield a _Rule object for each rule
     """
-    for name in _rules:
-        yield _rules[name]
+    for name in context._rules:
+        yield context._rules[name]
 
 
 def _extract_cmd_vars(rule):
@@ -164,7 +189,7 @@ def _extract_cmd_vars(rule):
 
     def repl(m):
         var = m[1]
-        if var in _stdvar:
+        if var in _ninja_stdvar:
             return m[0]
         var = f"{name}_{var}"
         vars[var] = ""
@@ -176,7 +201,7 @@ def _extract_cmd_vars(rule):
     return _var.sub(repl, rule.command), vars
 
 
-def _write_rule(writer, rule):
+def _write_rule(context: _Context, writer, rule):
     command, vars = _extract_cmd_vars(rule)
     for name in vars:
         writer.variable(name, vars[name])
@@ -185,7 +210,7 @@ def _write_rule(writer, rule):
     if maxpar:
         pool = f"{rule.name}_pool"
         writer.pool(pool, maxpar)
-    edeps, eoodeps = rule.callback(targets)
+    edeps, eoodeps = rule.callback(context.targets)
     rule.deps.update(edeps)
     rule.oodeps.update(eoodeps)
     writer.rule(
@@ -198,12 +223,13 @@ def _write_rule(writer, rule):
     writer.newline()
 
 
-def _write_build(writer, build):
-    rule = _rules[build.rule]
-    dst = relative(cwd(), build.dst)
-    src = relative(cwd(), build.src)
-    deps = relative(cwd(), {**build.deps, **rule.deps})
-    oodeps = relative(cwd(), {**build.oodeps, **rule.oodeps})
+def _write_build(context: _Context, writer, build):
+    cwd = context.cwd
+    rule = context._rules[build.rule]
+    dst = relative(cwd, build.dst)
+    src = relative(cwd, build.src)
+    deps = relative(cwd, {**build.deps, **rule.deps})
+    oodeps = relative(cwd, {**build.oodeps, **rule.oodeps})
     vars = build.vars
     if rule.vars.get("depfile"):
         vars["depfile"] = ".hb/" + _mangle_path(f"{dst[0]}.d")
@@ -212,18 +238,12 @@ def _write_build(writer, build):
         writer.default(dst)
 
 
-def write_ninja(fh):
+def write_ninja(context: _Context, fh):
     """Write ninja build file"""
     writer = ninja.Writer(fh)
     writer.variable("builddir", ".hb")
-    for rule in _rules.values():
+    for rule in context._rules.values():
         if rule.used:
-            _write_rule(writer, rule)
-    for build in _builds:
-        _write_build(writer, build)
-
-
-def clear():
-    _rules.clear()
-    targets.clear()
-    _builds.clear()
+            _write_rule(context, writer, rule)
+    for build in context._builds:
+        _write_build(context, writer, build)

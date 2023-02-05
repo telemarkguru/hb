@@ -13,88 +13,99 @@ def _compare_exp(file):
 
 
 def test_rule_define():
-    hb.clear()
-    hb.anchor(_this)
+    context = hb.context(_this)
 
-    @hb.rule("cat $in > $out")
+    @context.rule("cat $in > $out")
     def test_nada():
         """
         Documentation
         """
-        hb.build(test_nada, "a")
+        context.build(test_nada, "a")
         return 42
 
-    for rule in hb.rules():
+    for rule in context.rules():
         assert rule.name == "test_nada"
         assert rule.doc.strip() == "Documentation"
 
-    assert hb.test_nada() == 42
-    assert hb.targets == {f"{_this}/a": True}
-    assert hb._rule._builds[0].rule == "test_nada"
+    assert context.test_nada() == 42
+    assert context.targets == {f"{_this}/a": True}
+    assert context._builds[0].rule == "test_nada"
 
 
 def test_depfile():
     os.chdir(_this + "/..")
-    hb.clear()
-    hb.anchor(_this)
+    context = hb.context(_this)
 
-    @hb.rule("cat $in > $out")
+    @context.rule("cat $in > $out")
     def depfile():
-        hb.build(depfile, "foo", depfile=True)
+        context.build(depfile, "foo", depfile=True)
 
     depfile()
     # assert hb._rule._builds[0].vars["depfile"] == ".hb/tests__foo.d"
 
 
 def test_rule_redefine():
-    hb.clear()
+    context = hb.context(_this)
 
-    @hb.rule("foo")
+    @context.rule("foo")
     def foo():
         pass
 
-    hb.foo()
+    context.foo()
 
-    with pytest.raises(KeyError, match=r"Rule foo already defined"):
-        hb.rule("bar")(foo)
+    with pytest.raises(KeyError, match=r"Name foo already defined"):
+        context.rule("bar")(foo)
 
 
 def test_write_ninja():
     os.chdir(_this)
-    hb.clear()
-    hb.anchor(_this)
+    context = hb.context(_this)
 
-    @hb.rule(
+    @context.rule(
         "gcc -MM $depfile -c ${opts} -o $out $in", depfile=True, opts="-O2"
     )
     def gcc(*cfiles):
-        cfiles = hb.pathset(*cfiles)
+        cfiles = context.pathset(*cfiles)
         for file in cfiles:
-            hb.build(gcc, f"{file}.o", file)
+            context.build(gcc, f"{file}.o", file)
 
     gcc("a.c", "b.c", "../d/c.c")
     ninja = f"{_this}/build.ninja"
     with open(ninja, "w") as fh:
-        hb.write_ninja(fh)
+        context.write_ninja(fh)
     _compare_exp(ninja)
 
 
 def test_pool():
     os.chdir(_this)
-    hb.clear()
-    hb.anchor(_this)
+    context = hb.context()
 
-    @hb.rule(
+    @context.rule(
         "echo hello >$out && cat $in >>$out",
         maxpar=2,
+        deps=f"{_this}/files/subdir/foo.bar",
     )
     def hello(*files):
-        files = hb.pathset(files)
+        files = context.pathset(files)
         for file in files:
-            hb.build(hello, f"{file}.hello", file)
+            context.build(hello, f"{file}.hello", file)
 
     hello("files/hb.py")
     ninja = f"{_this}/build2.ninja"
     with open(ninja, "w") as fh:
-        hb.write_ninja(fh)
+        context.write_ninja(fh)
     _compare_exp(ninja)
+
+
+def test_build_scan():
+    context = hb.context(_this)
+
+    @context.rule("cat $in >$out")
+    def scanner(outfile, *infiles):
+        context.build(
+            scanner, context.pathset(outfile), context.pathset(*infiles)
+        )
+
+    scanner(f"{_this}/files/floppy.txt", f"{_this}/files/test1.list")
+    assert context.floppydisk == 3
+    assert context.subdir

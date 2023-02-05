@@ -1,63 +1,38 @@
-from ._path import (
-    pathset,
-    paths,
-    stat,
-    clear as path_clear,
-    isdir,
-    exists,
-    newest,
-    oldest,
-    cwd,
-    relative,
-    directories,
-    files,
-    filter,
-    root,
-    anchor,
-    statistics,
-)
-
-from ._read import load, scan, loaded_files, clear as read_clear
-
-from ._rule import (
-    rule,
-    build,
-    rules,
-    targets,
-    clear as rule_clear,
-    write_ninja,
-)
+from . import _path as path
+from . import _read as read
+from . import _rule as rule
 
 
-def clear():
-    path_clear()
-    read_clear()
-    rule_clear()
+class Context(rule._Context):
+
+    pathset = path.pathset
+    paths = path.paths
+    canonical = path.canonical
+    stat = path.stat
+    isdir = path.isdir
+    exists = path.exists
+    newest = path.newest
+    oldest = path.oldest
+    directories = path.directories
+    files = path.files
+    filter = path.filter
+    relative = path.relative
+
+    build = rule.build
+    rules = rule.rules
+    write_ninja = rule.write_ninja
+    rule = rule.rule
+
+
+def context(cwdpath: str = ""):
+    """Create context base on given path, or current directory
+    if not given, Return rule context"""
+    return path.context(cwdpath, Context)
 
 
 __all__ = [
-    "pathset",
-    "paths",
-    "stat",
-    "isdir",
-    "exists",
-    "newest",
-    "oldest",
-    "cwd",
-    "relative",
-    "directories",
-    "files",
-    "filter",
-    "root",
-    "anchor",
-    "statistics",
-    "load",
-    "scan",
-    "loaded_files",
+    "path",
+    "read",
     "rule",
-    "build",
-    "rules",
-    "targets",
-    "write_ninja",
-    "clear",
+    "Context",
 ]
