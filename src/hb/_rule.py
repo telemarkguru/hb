@@ -7,10 +7,10 @@ from ._path import _Context as _PathContext
 from ._read import scan, load
 
 
-_CallBack = Callable[[PathSet], Tuple[PathSet, PathSet]]
+_CallBack = Callable[["_Context"], Tuple[PathSet, PathSet]]
 
 
-def _default_callback(_: PathSet) -> Tuple[PathSet, PathSet]:
+def _default_callback(_: "_Context") -> Tuple[PathSet, PathSet]:
     return {}, {}
 
 
@@ -210,7 +210,7 @@ def _write_rule(context: _Context, writer, rule):
     if maxpar:
         pool = f"{rule.name}_pool"
         writer.pool(pool, maxpar)
-    edeps, eoodeps = rule.callback(context.targets)
+    edeps, eoodeps = rule.callback(context)
     rule.deps.update(edeps)
     rule.oodeps.update(eoodeps)
     writer.rule(
