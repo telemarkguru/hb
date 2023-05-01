@@ -1,4 +1,5 @@
-from hb import path as hb
+import hb
+from hb import path
 
 import os
 import os.path as op
@@ -14,23 +15,23 @@ def _expected_paths(*paths):
 
 
 def _assert_paths(pathset, expected):
-    paths = list(hb.paths(pathset))
+    paths = list(path.paths(pathset))
     expected = _expected_paths(*expected)
     assert paths == expected
 
 
 def test_root():
     context = hb.context(f"{_this}/subdir")
-    pset = hb.pathset(context, ".")
+    pset = context.pathset(".")
     assert context.root == _this
-    assert list(hb.paths(pset)) == [f"{_this}/subdir"]
+    assert list(context.paths(pset)) == [f"{_this}/subdir"]
     with pytest.raises(FileNotFoundError, match=r"Cannot find root.*"):
         hb.context(f"{_this}/..")
 
 
 def test_pathset():
     context = hb.context(_this)
-    pset = hb.pathset(context, "$root/files/test1.list")
+    pset = context.pathset("$root/files/@test1")
     _assert_paths(
         pset,
         [
@@ -46,9 +47,9 @@ def test_pathset():
 
 def test_merge_pathsets():
     context = hb.context(_this)
-    pset1 = hb.pathset(context, "files")
-    pset2 = hb.pathset(context, "$root/files/subdir2/foo/foo.list")
-    pset = hb.pathset(context, pset1, pset2, ["files/subdir", "files/foo.bar"])
+    pset1 = context.pathset("files")
+    pset2 = context.pathset("$root/files/subdir2/foo/@foo")
+    pset = context.pathset(pset1, pset2, ["files/subdir", "files/foo.bar"])
     _assert_paths(
         pset,
         [
@@ -64,7 +65,7 @@ def test_cwd_use():
     cwd = os.getcwd()
     os.chdir(f"{_this}/files/subdir")
     context = hb.context()
-    pset = hb.pathset(context, ",")
+    pset = context.pathset(",")
     os.chdir(cwd)
     _assert_paths(pset, ["files/subdir"])
 
@@ -92,40 +93,39 @@ def test_newest():
     n2 = f"{_this}/newest.txt"
     _touch(n1)
     _touch(n2)
-    pset = hb.pathset(context, "$root/files/test1.list", n1, n2)
-    assert hb.newest(context, pset) == n2
+    pset = context.pathset("$root/files/@test1", n1, n2)
+    assert context.newest(pset) == n2
     assert context.hits == 0
     assert context.misses == len(pset)
     _touch(n1)
-    assert hb.newest(context, pset) == n2
+    assert context.newest(pset) == n2
     assert context.hits == len(pset)
     assert context.misses == len(pset)
     context = hb.context(_this)
     assert context.misses == 0
     assert context.hits == 0
-    assert hb.newest(context, pset) == n1
+    assert context.newest(pset) == n1
 
 
 def test_oldest():
     context = hb.context(_this)
     n1 = f"{_this}/onew.txt"
-    pset = hb.pathset(context, "$root/files/subdir2/bar/files.list", n1)
+    pset = context.pathset("$root/files/subdir2/bar/@files", n1)
     for p in ("bar/a.file", "foo/z.w"):
         _touch(f"{_this}/files/subdir2/{p}")
     _touch(n1)
-    assert hb.oldest(context, pset) == f"{_this}/files/subdir2/foo/x.y"
-    assert hb.newest(context, pset) == n1
+    assert context.oldest(pset) == f"{_this}/files/subdir2/foo/x.y"
+    assert context.newest(pset) == n1
 
 
 def test_directories():
     context = hb.context(_this)
-    pset = hb.pathset(
-        context,
-        "$root/files/test1.list",
+    pset = context.pathset(
+        "$root/files/@test1",
         "files/subdir2",
         "files/dirsymlink",
     )
-    directories = hb.directories(context, pset)
+    directories = context.directories(pset)
     _assert_paths(
         directories,
         [
@@ -141,14 +141,13 @@ def test_directories():
 
 def test_files():
     context = hb.context(_this)
-    pset = hb.pathset(
-        context,
-        "$root/files/test1.list",
+    pset = context.pathset(
+        "$root/files/@test1",
         "files/dirsymlink",
         "files/slink",
     )
     _assert_paths(
-        hb.files(context, pset),
+        context.files(pset),
         [
             "files/foo.bar",
             "files/subdir/foo.bar",
@@ -163,8 +162,8 @@ def test_files():
 
 def test_filter():
     context = hb.context(_this)
-    pset = hb.pathset(context, "$root/files/test1.list")
-    foo = hb.filter(pset, r"/foo/")
+    pset = context.pathset("$root/files/@test1")
+    foo = context.filter(pset, r"/foo/")
     _assert_paths(
         foo,
         [
@@ -172,7 +171,7 @@ def test_filter():
             "files/subdir2/foo/z.w",
         ],
     )
-    foo, bar = hb.filter(pset, r"/foo/", r"\.bar$")
+    foo, bar = context.filter(pset, r"/foo/", r"\.bar$")
     _assert_paths(
         foo,
         [
@@ -185,8 +184,8 @@ def test_filter():
 
 def test_relative():
     context = hb.context(_this)
-    pset = hb.pathset(context, "$root/files/test1.list")
-    rp = hb.relative(f"{_this}/files/subdir/ping", pset)
+    pset = context.pathset("$root/files/@test1")
+    rp = context.relative(f"{_this}/files/subdir/ping", pset)
     assert rp == [
         "../../foo.bar",
         "../foo.bar",
@@ -199,9 +198,9 @@ def test_relative():
 
 def test_exists():
     context = hb.context(_this)
-    p, *_ = hb.paths(hb.pathset(context, f"/{_this}/files/test1.list"))
-    assert not hb.exists(context, "/a/file/that/does/not/exist")
-    assert hb.exists(context, p)
+    p, *_ = context.paths(context.pathset(f"/{_this}/files/@test1"))
+    assert not context.exists("/a/file/that/does/not/exist")
+    assert context.exists(p)
     # Try again, to make sure cached values are working
-    assert not hb.exists(context, "/a/file/that/does/not/exist")
-    assert hb.exists(context, p)
+    assert not context.exists("/a/file/that/does/not/exist")
+    assert context.exists(p)

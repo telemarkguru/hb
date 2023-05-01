@@ -2,6 +2,8 @@
 Cononical file paths with caching
 """
 
+from ._read import load_and_run
+
 import os
 import re
 from os.path import normpath, dirname, relpath
@@ -23,9 +25,10 @@ class _Context:
     anchor: str = ""
     hits: int = 0
     misses: int = 0
-    _explist_cache: Dict[str, PathSet] = field(default_factory=dict)
+    named_pathsets: Dict[str, PathSet] = field(default_factory=dict)
     _dir_cache: Dict[str, str] = field(default_factory=dict)
     _stat_cache: Dict[str, os.stat_result] = field(default_factory=dict)
+    _loaded: PathSet = field(default_factory=dict)
 
 
 def _normpath(path):
@@ -88,8 +91,8 @@ def pathset(context: _Context, *paths: AnyPath) -> PathSet:
     for path in paths:
         if isinstance(path, str):
             path = canonical(context, path)
-            if path.endswith(".list"):
-                pset.update(_explist(context, path))
+            if '@' in path:
+                pset.update(_exppath(context, path))
             else:
                 pset[path] = True
         elif isinstance(path, dict):
@@ -108,28 +111,33 @@ def paths(pathset: dict) -> Iterable[str]:
 _comment = re.compile(r"#.*$")
 
 
-def _explist(context: _Context, listfilepath: str) -> PathSet:
-    """Expand listfile (.list)
+def _exppath(context: _Context, named_ps: str) -> PathSet:
+    """Expand path set reference
     Return pathset.
     """
-    pset = context._explist_cache.get(listfilepath, {})
+    db = context.named_pathsets
+    pset = db.get(named_ps, {})
     if pset:
         return pset
-    directory = dirname(listfilepath)
-    anchor = context.anchor
-    context.anchor = directory
-    with open(listfilepath) as fh:
-        for line in fh:
-            line = _comment.sub("", line).strip()
-            if not line:
-                continue
-            path = canonical(context, line)
-            if path.endswith(".list"):
-                pset.update(_explist(context, path))
-            else:
-                pset[path] = True
-    context._explist_cache[listfilepath] = pset
-    context.anchor = anchor
+    directory = dirname(named_ps)
+    hbpy = f"{directory}/hb.py"
+    load_and_run(context, hbpy)
+    pset = db.get(named_ps)
+    if pset is None:
+        raise ValueError(f"Named pathset {named_ps} is not defined")
+    return pset
+
+
+def export(context: _Context, name: str, *paths: AnyPath) -> PathSet:
+    """Create and export named path set.
+    Arguments and return value as for pathset() function.
+    """
+    pset = pathset(context, *paths)
+    db = context.named_pathsets
+    fullname = f"{context.anchor}/@{name}"
+    if fullname in db:
+        raise ValueError(f"Named pathset {fullname} already defined")
+    db[fullname] = pset
     return pset
 
 

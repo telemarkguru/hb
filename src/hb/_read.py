@@ -2,15 +2,17 @@
 Read hb.py files
 """
 
-from ._path import PathSet
-
 import importlib
 import importlib.util
 import sys
 from os import listdir
 from os.path import dirname, exists
-from typing import Tuple
+from typing import Tuple, Dict, Any
 from types import ModuleType
+
+
+PathSet = Dict[str, bool]
+Context = Dict[str, Any]
 
 
 def _load_source(modname: str, filepath: str):
@@ -29,6 +31,20 @@ def load(hb_path: str) -> ModuleType:
     mod = _load_source("read_hb", hb_path)
     sys.path.pop(0)
     return mod
+
+
+def load_and_run(context: Context, hb_path: str):
+    """Load hb.py Python file and call build() function in it,
+    if it exists and has not already been called."""
+    if hb_path in context._loaded:
+        return
+    context._loaded[hb_path] = True
+    mod = load(hb_path)
+    if hasattr(mod, "build"):
+        anchor = context.anchor
+        context.anchor = dirname(hb_path)
+        mod.build(context)
+        context.anchor = anchor
 
 
 def scan(

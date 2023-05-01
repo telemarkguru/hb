@@ -4,7 +4,7 @@ import re
 import ninja
 from ._path import PathSet, pathset, AnyPath, directories, relative
 from ._path import _Context as _PathContext
-from ._read import scan, load
+from ._read import scan, load_and_run
 
 
 _CallBack = Callable[["_Context"], Tuple[PathSet, PathSet]]
@@ -170,9 +170,7 @@ def build(
         context._scanned,
     )
     for file in files:
-        mod = load(file)
-        if hasattr(mod, "build"):
-            mod.build(context)
+        load_and_run(context, file)
 
 
 def rules(context: _Context):

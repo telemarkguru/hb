@@ -6,7 +6,7 @@ from . import _rule as rule
 class Context(rule._Context):
 
     pathset = path.pathset
-    paths = path.paths
+    export = path.export
     canonical = path.canonical
     stat = path.stat
     isdir = path.isdir
@@ -15,13 +15,20 @@ class Context(rule._Context):
     oldest = path.oldest
     directories = path.directories
     files = path.files
-    filter = path.filter
-    relative = path.relative
 
     build = rule.build
     rules = rule.rules
     write_ninja = rule.write_ninja
     rule = rule.rule
+
+    def paths(self, pathset):
+        return path.paths(pathset)
+
+    def filter(self, pathset, *patterns):
+        return path.filter(pathset, *patterns)
+
+    def relative(self, frompath, pathset):
+        return path.relative(frompath, pathset)
 
 
 def context(cwdpath: str = ""):
